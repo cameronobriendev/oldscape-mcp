@@ -2,12 +2,12 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { registerTools } from '../lib/tools.js';
 
-function createServer() {
+function createServer(player) {
   const server = new McpServer({
     name: 'oldscape',
     version: '1.0.0',
   });
-  registerTools(server);
+  registerTools(server, player);
   return server;
 }
 
@@ -27,8 +27,12 @@ export default async function handler(req, res) {
     return;
   }
 
+  // Extract player identity from URL query param
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const player = url.searchParams.get('player') || null;
+
   try {
-    const server = createServer();
+    const server = createServer(player);
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined, // Stateless
     });
