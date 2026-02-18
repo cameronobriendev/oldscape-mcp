@@ -1,5 +1,5 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { registerTools } from '../lib/tools.js';
 
 function createServer() {
@@ -11,40 +11,34 @@ function createServer() {
   return server;
 }
 
-export default async function handler(request) {
-  // Handle CORS preflight
-  if (request.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 204,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, mcp-session-id, mcp-protocol-version',
-      },
+export default async function handler(req, res) {
+  // CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, mcp-session-id, mcp-protocol-version');
+
+  if (req.method === 'OPTIONS') {
+    res.status(204).end();
+    return;
+  }
+
+  if (!['GET', 'POST', 'DELETE'].includes(req.method)) {
+    res.status(405).json({ error: 'Method Not Allowed' });
+    return;
+  }
+
+  try {
+    const server = createServer();
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: undefined, // Stateless
     });
+
+    await server.connect(transport);
+    await transport.handleRequest(req, res, req.body);
+  } catch (err) {
+    console.error('MCP Error:', err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: err.message });
+    }
   }
-
-  // Only allow POST (tool calls), GET (SSE stream), DELETE (session close)
-  if (!['GET', 'POST', 'DELETE'].includes(request.method)) {
-    return new Response('Method Not Allowed', { status: 405 });
-  }
-
-  const server = createServer();
-  const transport = new WebStandardStreamableHTTPServerTransport({
-    sessionIdGenerator: undefined, // Stateless — ideal for serverless
-  });
-
-  await server.connect(transport);
-
-  const response = await transport.handleRequest(request);
-
-  // Add CORS headers to the response
-  const headers = new Headers(response.headers);
-  headers.set('Access-Control-Allow-Origin', '*');
-
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers,
-  });
 }
