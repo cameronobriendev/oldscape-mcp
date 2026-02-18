@@ -1,0 +1,12 @@
+{
+  "name": "oldscape-mcp",
+  "version": "1.0.0",
+  "description": "Shared OSRS team wiki MCP server",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@libsql/client": "^0.14.0",
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "zod": "^4.3.6"
+  }
+}
